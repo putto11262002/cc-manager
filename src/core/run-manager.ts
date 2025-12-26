@@ -44,6 +44,7 @@ import {
   ValidationError,
 } from '../errors';
 import { logger } from '../logger';
+import { dispatchWebhook } from './webhook';
 
 // ============================================================================
 // State
@@ -148,6 +149,7 @@ export async function start(params: StartParams): Promise<RunResult> {
     status: 'running',
     startedAt: new Date().toISOString(),
     abortController,
+    webhookUrl: params.webhookUrl,
   };
   activeRuns.set(runId, activeRun);
 
@@ -162,6 +164,20 @@ export async function start(params: StartParams): Promise<RunResult> {
     prompt: params.prompt,
     createdAt: new Date().toISOString(),
   });
+
+  // Fire run.started webhook
+  if (params.webhookUrl) {
+    dispatchWebhook(params.webhookUrl, {
+      event: 'run.started',
+      runId,
+      sessionId: '',
+      timestamp: new Date().toISOString(),
+      payload: {
+        mode: 'fresh',
+        cwd: params.cwd,
+      },
+    });
+  }
 
   try {
     // Execute and get stream
@@ -197,6 +213,41 @@ export async function start(params: StartParams): Promise<RunResult> {
 
     log.info('Run completed', { sessionId, status, durationMs });
 
+    // Fire completion webhook
+    if (params.webhookUrl) {
+      if (status === 'completed') {
+        // Extract result data from resultMessage
+        const resultText = (resultMessage as any)?.result;
+        const totalCostUsd = (resultMessage as any)?.total_cost_usd;
+
+        dispatchWebhook(params.webhookUrl, {
+          event: 'run.completed',
+          runId,
+          sessionId,
+          timestamp: new Date().toISOString(),
+          payload: {
+            subtype: 'success',
+            durationMs,
+            totalCostUsd,
+            result: resultText,
+          },
+        });
+      } else {
+        // Fire run.failed for SDK errors
+        dispatchWebhook(params.webhookUrl, {
+          event: 'run.failed',
+          runId,
+          sessionId,
+          timestamp: new Date().toISOString(),
+          payload: {
+            subtype: (resultMessage as any)?.subtype || 'error_unknown',
+            durationMs,
+            error: (resultMessage as any)?.error || 'Unknown error',
+          },
+        });
+      }
+    }
+
     return {
       runId,
       sessionId,
@@ -222,6 +273,20 @@ export async function start(params: StartParams): Promise<RunResult> {
       .where(eq(runTable.id, runId));
 
     activeRuns.delete(runId);
+
+    // Fire run.error webhook
+    if (params.webhookUrl) {
+      dispatchWebhook(params.webhookUrl, {
+        event: 'run.error',
+        runId,
+        sessionId: activeRun.sessionId || '',
+        timestamp: new Date().toISOString(),
+        payload: {
+          code: 'EXECUTION_ERROR',
+          message: errorMessage,
+        },
+      });
+    }
 
     return {
       runId,
@@ -331,6 +396,7 @@ async function executeRun(
     status: 'running',
     startedAt: new Date().toISOString(),
     abortController,
+    webhookUrl: params.webhookUrl,
   };
   activeRuns.set(runId, activeRun);
 
@@ -345,6 +411,20 @@ async function executeRun(
     prompt: params.prompt,
     createdAt: new Date().toISOString(),
   });
+
+  // Fire run.started webhook
+  if (params.webhookUrl) {
+    dispatchWebhook(params.webhookUrl, {
+      event: 'run.started',
+      runId,
+      sessionId: '',
+      timestamp: new Date().toISOString(),
+      payload: {
+        mode,
+        cwd,
+      },
+    });
+  }
 
   try {
     // Execute based on mode
@@ -383,6 +463,41 @@ async function executeRun(
 
     log.info('Run completed', { sessionId, status, durationMs });
 
+    // Fire completion webhook
+    if (params.webhookUrl) {
+      if (status === 'completed') {
+        // Extract result data from resultMessage
+        const resultText = (resultMessage as any)?.result;
+        const totalCostUsd = (resultMessage as any)?.total_cost_usd;
+
+        dispatchWebhook(params.webhookUrl, {
+          event: 'run.completed',
+          runId,
+          sessionId,
+          timestamp: new Date().toISOString(),
+          payload: {
+            subtype: 'success',
+            durationMs,
+            totalCostUsd,
+            result: resultText,
+          },
+        });
+      } else {
+        // Fire run.failed for SDK errors
+        dispatchWebhook(params.webhookUrl, {
+          event: 'run.failed',
+          runId,
+          sessionId,
+          timestamp: new Date().toISOString(),
+          payload: {
+            subtype: (resultMessage as any)?.subtype || 'error_unknown',
+            durationMs,
+            error: (resultMessage as any)?.error || 'Unknown error',
+          },
+        });
+      }
+    }
+
     return {
       runId,
       sessionId,
@@ -408,6 +523,20 @@ async function executeRun(
       .where(eq(runTable.id, runId));
 
     activeRuns.delete(runId);
+
+    // Fire run.error webhook
+    if (params.webhookUrl) {
+      dispatchWebhook(params.webhookUrl, {
+        event: 'run.error',
+        runId,
+        sessionId: activeRun.sessionId || '',
+        timestamp: new Date().toISOString(),
+        payload: {
+          code: 'EXECUTION_ERROR',
+          message: errorMessage,
+        },
+      });
+    }
 
     return {
       runId,

@@ -286,6 +286,143 @@ All runs use `forkSession: true`:
 - Sessions become tree structures
 - No destructive operations on history
 
+## Webhook Notifications
+
+CC Manager supports optional webhook notifications for run lifecycle events. Clients can provide a webhook URL when starting a run to receive HTTP callbacks for key events.
+
+### Configuration
+
+Webhook URL is optional and provided per-run:
+
+```typescript
+POST /api/runs/start
+{
+  "cwd": "/path/to/project",
+  "prompt": "Hello",
+  "webhookUrl": "https://myserver.com/cc-events"  // Optional
+}
+```
+
+When `webhookUrl` is provided, CC Manager will POST events to that URL. If omitted, no webhooks are sent (useful for frontend clients that use polling or future streaming).
+
+### Event Types
+
+All webhook payloads follow a consistent structure:
+
+```typescript
+{
+  "event": string,      // Event type
+  "runId": string,      // Run identifier
+  "sessionId": string,  // Session identifier (may be empty for run.started)
+  "timestamp": string,  // ISO 8601 timestamp
+  "payload": { ... }    // Event-specific data
+}
+```
+
+#### `run.started`
+
+Fired immediately when a run begins execution.
+
+```typescript
+{
+  "event": "run.started",
+  "runId": "uuid",
+  "sessionId": "",  // Not yet known
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "payload": {
+    "mode": "fresh" | "resume" | "fork",
+    "cwd": "/path/to/project"
+  }
+}
+```
+
+#### `run.completed`
+
+Fired when a run completes successfully (SDK returns `result.subtype === 'success'`).
+
+```typescript
+{
+  "event": "run.completed",
+  "runId": "uuid",
+  "sessionId": "session-uuid",
+  "timestamp": "2024-01-15T10:31:00.000Z",
+  "payload": {
+    "subtype": "success",
+    "durationMs": 60000,
+    "totalCostUsd": 0.05,
+    "result": "Task completed successfully..."  // Final text result
+  }
+}
+```
+
+#### `run.failed`
+
+Fired when SDK returns a result with an error subtype. These are controlled failures from the SDK.
+
+```typescript
+{
+  "event": "run.failed",
+  "runId": "uuid",
+  "sessionId": "session-uuid",
+  "timestamp": "2024-01-15T10:31:00.000Z",
+  "payload": {
+    "subtype": "error_max_turns" | "error_during_execution" | "error_max_budget_usd" | "error_max_structured_output_retries",
+    "durationMs": 60000,
+    "error": "Max turns exceeded"
+  }
+}
+```
+
+#### `run.error`
+
+Fired when an unhandled exception occurs during execution. These are unexpected errors caught by cc-manager.
+
+```typescript
+{
+  "event": "run.error",
+  "runId": "uuid",
+  "sessionId": "session-uuid",  // May be empty if error occurred early
+  "timestamp": "2024-01-15T10:31:00.000Z",
+  "payload": {
+    "code": "EXECUTION_ERROR",
+    "message": "Connection refused"
+  }
+}
+```
+
+### Webhook Behavior
+
+- **Fire and forget**: Webhooks are dispatched asynchronously and don't block run execution
+- **No retries**: Failed webhook calls are logged but not retried (keeps the service simple)
+- **Timeout**: 10 second timeout per webhook call
+- **Error isolation**: Webhook failures don't affect run status or result
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Run Manager                               │
+│                                                                  │
+│  start() ─────────────────────────────────────────────────────► │
+│     │                                                            │
+│     ├─► Fire run.started webhook ──────► Client webhook URL     │
+│     │                                                            │
+│     ├─► Execute run (stream processing)                         │
+│     │                                                            │
+│     └─► On completion:                                           │
+│           ├─ Success? ──► Fire run.completed webhook            │
+│           ├─ SDK error? ──► Fire run.failed webhook             │
+│           └─ Exception? ──► Fire run.error webhook              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Implementation Notes
+
+- Webhook dispatcher is a separate module (`src/core/webhook.ts`)
+- Uses native `fetch()` for HTTP calls
+- Webhook URL stored in activeRuns Map during execution
+- Logs all webhook dispatches for debugging
+
 ## Future Considerations
 
 ### Real-Time Streaming (Not Implemented)

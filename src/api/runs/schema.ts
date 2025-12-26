@@ -57,6 +57,7 @@ export const startRunSchema = z.object({
   ),
   images: z.array(imageSchema).max(MAX_IMAGES, 'Too many images').optional(),
   options: optionsSchema,
+  webhookUrl: z.string().url('Invalid webhook URL').optional(),
 });
 
 export type StartRunRequest = z.infer<typeof startRunSchema>;
@@ -71,6 +72,7 @@ export const resumeRunSchema = z.object({
   ),
   images: z.array(imageSchema).max(MAX_IMAGES, 'Too many images').optional(),
   options: optionsSchema,
+  webhookUrl: z.string().url('Invalid webhook URL').optional(),
 });
 
 export type ResumeRunRequest = z.infer<typeof resumeRunSchema>;
@@ -85,6 +87,7 @@ export const forkRunSchema = z.object({
   ),
   images: z.array(imageSchema).max(MAX_IMAGES, 'Too many images').optional(),
   options: optionsSchema,
+  webhookUrl: z.string().url('Invalid webhook URL').optional(),
 });
 
 export type ForkRunRequest = z.infer<typeof forkRunSchema>;

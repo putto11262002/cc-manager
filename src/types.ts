@@ -48,6 +48,8 @@ export interface StartParams {
   images?: ImageAttachment[];
   /** SDK options */
   options?: Partial<Options>;
+  /** Optional webhook URL for lifecycle notifications */
+  webhookUrl?: string;
 }
 
 /**
@@ -62,6 +64,8 @@ export interface ResumeParams {
   images?: ImageAttachment[];
   /** SDK options */
   options?: Partial<Options>;
+  /** Optional webhook URL for lifecycle notifications */
+  webhookUrl?: string;
 }
 
 /**
@@ -76,6 +80,8 @@ export interface ForkParams {
   images?: ImageAttachment[];
   /** SDK options */
   options?: Partial<Options>;
+  /** Optional webhook URL for lifecycle notifications */
+  webhookUrl?: string;
 }
 
 // ============================================================================
@@ -98,6 +104,8 @@ export interface ActiveRun {
   startedAt: string;
   /** Abort controller for cancellation */
   abortController: AbortController;
+  /** Optional webhook URL for lifecycle notifications */
+  webhookUrl?: string;
 }
 
 // ============================================================================
