@@ -9,6 +9,8 @@
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { openAPIRouteHandler } from 'hono-openapi';
+import { Scalar } from '@scalar/hono-api-reference';
 import api from './api';
 import { logger } from './logger';
 
@@ -65,6 +67,30 @@ app.get('/', (c) => {
 
 // Mount API routes
 app.route('/api', api);
+
+// OpenAPI spec (auto-generated, currently without per-route schemas)
+app.get(
+  '/openapi.json',
+  openAPIRouteHandler(app, {
+    documentation: {
+      info: {
+        title: 'CC Manager API',
+        version: '0.1.0',
+        description: 'Claude Code Manager API Service',
+      },
+    },
+    includeEmptyPaths: true,
+  })
+);
+
+// API docs (Scalar)
+app.get(
+  '/docs',
+  Scalar({
+    url: '/openapi.json',
+    pageTitle: 'CC Manager API Docs',
+  })
+);
 
 // Export AppType for RPC client usage
 export type AppType = typeof app;

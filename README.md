@@ -63,6 +63,8 @@ The server runs on `http://localhost:3000` by default.
 |--------|---------|-------------|
 | `GET` | `/health` | Health check |
 | `GET` | `/` | API info |
+| `GET` | `/openapi.json` | OpenAPI spec |
+| `GET` | `/docs` | API docs (Scalar) |
 
 ## Example Usage
 
