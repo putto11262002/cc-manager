@@ -106,7 +106,7 @@ Environment variables:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | `3000` | Server port |
-| `DATABASE_PATH` | `./db.sqlite` | SQLite database path |
+| `DATABASE_PATH` | `~/.cc-manager/sqlite.db` | SQLite database path |
 | `LOG_LEVEL` | `info` | Log level (debug, info, warn, error) |
 
 ## Database Schema
